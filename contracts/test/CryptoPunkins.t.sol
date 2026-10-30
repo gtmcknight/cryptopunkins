@@ -302,7 +302,7 @@ contract CryptoPunkinsTest is Test {
         _next(2);
         game.settle(10);
         json = string(Base64.decode(LibString.slice(game.tokenURI(1), 29)));
-        assertTrue(LibString.contains(json, '"trait_type":"Pot share","value":"Unpaid"'));
+        assertTrue(LibString.contains(json, '"trait_type":"Pot share","value":"0.0119 ETH owed"')); // (2 sold, 1 left)
         json = string(Base64.decode(LibString.slice(game.tokenURI(2), 29)));
         assertFalse(LibString.contains(json, '"Pot share"')); // (carved: no share)
         vm.expectEmit(address(game));
@@ -310,11 +310,14 @@ contract CryptoPunkinsTest is Test {
         game.sendShares(1, 2);
         json = string(Base64.decode(LibString.slice(game.tokenURI(1), 29)));
         assertTrue(LibString.contains(json, '"trait_type":"Pot share","value":"Paid"'));
-        // fed later: owed again until it goes out
+        // a few wei fed can't make it look unpaid; a real amount shows until it goes out
         vm.deal(address(this), 1 ether);
+        game.feed{value: 3}();
+        json = string(Base64.decode(LibString.slice(game.tokenURI(1), 29)));
+        assertTrue(LibString.contains(json, '"trait_type":"Pot share","value":"Paid"'));
         game.feed{value: 0.01 ether}();
         json = string(Base64.decode(LibString.slice(game.tokenURI(1), 29)));
-        assertTrue(LibString.contains(json, '"trait_type":"Pot share","value":"Unpaid"'));
+        assertTrue(LibString.contains(json, '"trait_type":"Pot share","value":"0.0100 ETH owed"'));
     }
 
     /// Nothing is owed to a pumpkin nobody minted, and settling with any max never overflows, even past expired hashes.

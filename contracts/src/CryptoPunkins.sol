@@ -269,10 +269,10 @@ contract CryptoPunkins is ERC721, ReentrancyGuardTransient {
         return whole == 0 || _p[id].state == WHOLE;
     }
 
-    /// For the metadata: 0 no share (or not midnight yet), 1 owed some of the pot, 2 paid all it's owed so far.
+    /// For the metadata: 0 if it has no share (or it's not midnight yet), else 1 + what it's still owed, in wei.
     function _potShare(uint256 id) internal view returns (uint256) {
         if (block.timestamp < end || !_shares(id)) return 0;
-        return paidOut[id] == share() ? 2 : 1;
+        return 1 + share() - paidOut[id];
     }
 
     /// @notice Add to the pot. Anyone, any time: a coin's trading fees come in here. Before midnight it grows the

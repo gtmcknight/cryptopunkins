@@ -109,8 +109,9 @@ contract Renderer {
             if (cut2 != 0) cuts = abi.encodePacked(cuts, " and #", LibString.toString(cut2));
             j.p(',{"trait_type":"Carved","value":"', cuts, '"}');
         }
-        // after midnight, whether its share of the pot has gone out, so nobody buys one thinking the share comes with it
-        if (pot != 0) j.p(',{"trait_type":"Pot share","value":"', bytes(pot == 2 ? "Paid" : "Unpaid"), '"}');
+        // after midnight, what its share of the pot still owes, so nobody buys one for a share that's gone (and a few
+        // wei fed to the pot can't make a paid one look unpaid): `pot` is 0 for no share, else 1 + the wei owed
+        if (pot != 0) j.p(',{"trait_type":"Pot share","value":"', _owedText(pot - 1), '"}');
         j.p("]}");
         return string.concat("data:application/json;base64,", Base64.encode(j.data));
     }
@@ -217,6 +218,15 @@ contract Renderer {
 
     function _colourName(uint256 c) internal pure returns (string memory) {
         return c == 1 ? "Rust" : c == 2 ? "Amber" : c == 3 ? "Copper" : c == 4 ? "Gold" : "Orange";
+    }
+
+    /// What a share still owes, to the 0.0001 ETH ("0.0065 ETH owed"), or "Paid" under that.
+    function _owedText(uint256 owed) internal pure returns (bytes memory) {
+        uint256 x = owed / 1e14;
+        if (x == 0) return "Paid";
+        bytes memory frac = bytes(LibString.toString(x % 10000));
+        while (frac.length < 4) frac = abi.encodePacked("0", frac);
+        return abi.encodePacked(LibString.toString(x / 10000), ".", frac, " ETH owed");
     }
 
     function _name(uint256 id, uint256 look, uint256 edition) internal pure returns (string memory) {
