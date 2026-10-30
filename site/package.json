@@ -1,0 +1,20 @@
+{
+  "name": "cryptopunkins-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "art": "cp ../data/site-art.json public/art.json",
+    "dev": "npm run art && vite",
+    "build": "npm run art && tsc --noEmit && vite build",
+    "deploy": "npm run build && wrangler deploy && wrangler secret bulk .dev.vars",
+    "cards": "python3 -I ../tools/cards.py ../data/grid.json public/cards"
+  },
+  "dependencies": {
+    "viem": "2.38.6"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "7.1.12",
+    "wrangler": "4.45.0"
+  }
+}

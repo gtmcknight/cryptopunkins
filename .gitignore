@@ -1,0 +1,23 @@
+# secrets: the Worker's Alchemy URL
+.dev.vars
+site/.dev.vars
+
+# installs and builds
+node_modules/
+site/dist/
+site/.wrangler/
+.shots/
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/render/
+contracts/deploy.log
+tools/__pycache__/
+.DS_Store
+
+# working files that aren't part of the game
+art/
+film/
+preview/
+opensea-metadata.json
+data/twins*.json

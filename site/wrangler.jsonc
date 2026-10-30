@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cryptopunkins",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  // Only the built page goes up (`npm run deploy` builds into ./dist first)
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true },
+  // Its own route, more specific than the taylor-fyi router's taylor.fyi/*, so the homepage is never redeployed for it
+  "routes": [{ "pattern": "taylor.fyi/cryptopunkins*", "zone_name": "taylor.fyi" }],
+  "workers_dev": false,
+  // GAME is the CryptoPunkins contract; set it to the deployed address before `npm run deploy`
+  "vars": { "GAME": "0x0000000000000000000000000000000000000000", "END": "1793505600", "FROM_BLOCK": "0" }
+}

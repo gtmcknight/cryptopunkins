@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CryptoPunkins</title>
+  <meta name="description" content="Mint a pumpkin and stab other people’s on Halloween night. The pumpkins still uncut at midnight split the pot.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="CryptoPunkins">
+  <meta property="og:description" content="Mint a pumpkin and stab other people’s on Halloween night. The pumpkins still uncut at midnight split the pot.">
+  <meta property="og:image" content="https://taylor.fyi/cryptopunkins/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Survive the night. Six CryptoPunkins: uncut, carved and a Great Pumpkin.">
+  <meta property="og:url" content="https://taylor.fyi/cryptopunkins/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#0b0e14">
+  <link rel="icon" href="favicon.png">
+  <script>
+    // night by default; ?theme= or a saved choice overrides, before first paint
+    (() => {
+      let t = new URLSearchParams(location.search).get('theme');
+      try { t = t || localStorage.getItem('theme'); } catch {}
+      document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark';
+      if (t === 'light') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f5f0e6'); // (the phone's status bar too)
+    })();
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <div class="sky" aria-hidden="true"></div>
+  <div class="night" aria-hidden="true"></div>
+  <div class="ticker" id="ticker" hidden><span class="live" aria-hidden="true"></span><div class="track"><div class="run" id="feed"></div></div></div>
+  <header class="bar">
+    <a class="mark" href="./">CryptoPunkins <span>2026</span></a>
+    <div class="tools">
+      <button class="navlink" id="howto" aria-label="How it works"><span class="long">How it works</span><span class="short">?</span></button>
+      <button class="icon" id="theme" aria-label="Switch to day">
+        <svg class="sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></g></svg>
+        <svg class="moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>
+      </button>
+      <button class="wallet" id="wallet">Connect</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="top" id="top">
+      <div class="hero">
+        <h1>Survive the night.</h1>
+        <ol class="how" id="how">
+          <li data-step="sales"><span class="ico"></span><span class="step"><span class="head"><b>Until 8&nbsp;PM Halloween</b><span class="when"></span></span>Mint a pumpkin, get two stabs, and pick your targets in secret.</span></li>
+          <li data-step="knives"><span class="ico"></span><span class="step"><span class="head"><b>8&nbsp;PM</b><span class="when"></span></span>Come back and stab. Stab before you get stabbed.</span></li>
+          <li data-step="over"><span class="ico"></span><span class="step"><span class="head"><b>Midnight</b><span class="when"></span></span>Survivors split the pot.</span></li>
+        </ol>
+      </div>
+      <div class="side">
+      <div class="media pot" id="potBox">
+        <span class="pic"><canvas id="moon" width="24" height="24" aria-hidden="true"></canvas></span>
+        <div><b id="pot">Pot</b><span id="potLine">&nbsp;</span></div>
+      </div>
+      <div class="stand" id="act">
+        <div class="media item" id="item">
+          <span class="pic kit" id="kit" aria-hidden="true"></span>
+          <div><b id="kitHead">1 pumpkin NFT + 2 stabs</b><span id="kitLine">Your shot at the pot</span></div>
+        </div>
+        <div class="qty" id="qty">
+          <input type="range" id="count" min="1" max="10" value="1" aria-label="How many pumpkins">
+          <span class="slots" id="slots" aria-hidden="true"></span>
+          <span class="rail" aria-hidden="true"><i></i></span><span class="knob" aria-hidden="true"></span>
+        </div>
+        <button class="primary" id="buy">Mint 1 for 0.00666 ETH</button>
+        <p class="msg" id="buyMsg" role="status"></p>
+        <div class="supply" id="supply"><span class="meter"><i id="supplyFill"></i></span><span id="supplyText">&nbsp;</span></div>
+      </div>
+      </div>
+    </section>
+
+    <section class="field">
+      <div class="filters">
+        <nav class="tabs" id="tabs" aria-label="Pumpkins"></nav>
+      </div>
+      <div class="patch" id="patch"></div>
+      <p class="empty" id="empty" hidden></p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>Just a game. Worst case, you end up with a pumpkin&nbsp;NFT.<br>Experimental software, not financial advice.</span>
+    <span class="links" id="links"><a href="https://github.com/gtmcknight/cryptopunkins" target="_blank" rel="noopener">Code</a></span>
+  </footer>
+
+  <button class="knives" id="knives" hidden><span id="knivesArt" aria-hidden="true"></span><span id="knivesText"></span></button>
+
+  <dialog class="sheet" id="sheet" aria-labelledby="sheetTitle" tabindex="-1">
+    <button class="close icon" id="close" aria-label="Close">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div id="sheetBody"></div>
+  </dialog>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,350 @@
+/* CryptoPunkins: the patch at night.
+   Type: Jersey 10 for the game (headline, numbers, labels, controls), the system sans for reading.
+   Sizes: 70 / 50 headline, 40 pot, 30 sheet titles, 20 labels and controls, 16 text, 14 small.
+   Space: 8, 16, 24, 40, 64. */
+@font-face { font-family: "Jersey 10"; src: url("./fonts/jersey-10.woff2") format("woff2"); font-display: swap; }
+:root {
+  --game: "Jersey 10", ui-sans-serif, system-ui, sans-serif;
+  --bg: #0b0e14;
+  --raised: #141925;
+  --ink: #f3eee5;
+  --muted: #a8a39a;
+  --line: rgba(243, 238, 229, 0.14);
+  --accent: #f08a24;
+  --accent-ink: #1c1003;
+  --bad: #ff8a7a;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ground: #0f0b09;
+  --sky-h: 420px;
+  --col: min(944px, 100% - 32px);
+  --wide: min(1400px, 100% - 32px); /* the patch's column: wider than the words above it */ /* the content column; the sky and the soil run past it, edge to edge */
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+}
+:root[data-theme="light"] {
+  --bg: #f5f0e6;
+  --raised: #fffdf8;
+  --ink: #1b1916;
+  --muted: #4b4842;
+  --line: rgba(27, 25, 22, 0.14);
+  --bad: #b3261e;
+  --ground: #e6d6bd;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+/* (phones: no grey flash on a tap, every press has its own :active; on its side, nothing under the notch) */
+html { scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+body { position: relative; margin: 0; padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px); background: var(--ground); color: var(--ink); font-size: 14px; line-height: 1.45; }
+.sky { position: absolute; inset: 0 0 auto; height: var(--sky-h); background: var(--sky) left top / var(--sky-size) no-repeat; image-rendering: pixelated; pointer-events: none; overflow: hidden; }
+/* the night moves a little */
+.tw { position: absolute; width: 3px; height: 3px; background: #dfe6f5; opacity: 0.2; animation: twinkle 4s ease-in-out infinite; }
+@keyframes twinkle { 50% { opacity: 1; } }
+.night { position: absolute; inset: 0 0 auto; height: 0; z-index: 3; pointer-events: none; overflow-x: clip; overflow-y: visible; } /* (the bat never widens the page) */
+.bat { position: absolute; left: 0; top: calc(var(--bat-y, 120px) - 9px); width: 39px; animation: fly 34s linear infinite; animation-delay: 6s; transform: translateX(-60px); }
+.bat svg { display: block; width: 39px; height: 18px; animation: bob 1.1s ease-in-out infinite alternate; }
+.bat .down { animation: flap 0.36s steps(1) infinite; }
+.bat .up { animation: flap 0.36s steps(1) infinite reverse; }
+@keyframes fly { 0% { transform: translateX(-60px); } 28%, 100% { transform: translateX(calc(100vw + 60px)); } }
+@keyframes bob { to { transform: translateY(14px); } }
+@keyframes flap { 0% { opacity: 1; } 50% { opacity: 0; } }
+/* carving opens: a flash of lightning */
+.flash { position: fixed; inset: 0; background: #f3eee5; pointer-events: none; z-index: 5; animation: flash 700ms var(--ease) forwards; }
+@keyframes flash { 0% { opacity: 0.55; } 15% { opacity: 0.1; } 25% { opacity: 0.4; } 100% { opacity: 0; } }
+
+.bar, .page, .foot { position: relative; }
+/* the game's face (it has one weight: never let the browser fake a bold) */
+.mark, h1, .how b, .when, #pot, .item b, .primary, .ghost, .wallet, .tabs a, .sheet h2, .navlink, .plant .stake, .plant .tag {
+  font-family: var(--game); font-weight: 400; letter-spacing: 0; font-synthesis: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+a { color: inherit; }
+/* controls answer a tap at once (no double-tap zoom wait), and a long press doesn't select their words or offer to
+   save a pumpkin's picture */
+button, a { touch-action: manipulation; }
+button, .primary, .ghost { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+/* everything you press gives a little; nothing grows on hover */
+.navlink, .icon, .primary, .ghost, .wallet, .walletRow, .tabs a, .plant img { transition: transform 150ms var(--ease); }
+.navlink:active, .icon:active, .primary:active, .ghost:active, .wallet:active, .walletRow:active, .tabs a:active { transform: scale(0.97); }
+
+/* header: name left, utilities right */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 976px; margin: 0 auto; padding: 16px; }
+.mark { font-size: 20px; text-decoration: none; }
+.mark span { color: var(--muted); }
+.tools { display: flex; align-items: center; gap: 4px; }
+.icon { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; background: none; border-radius: 12px; font-size: 16px; font-weight: 500; }
+.sun { display: block; } .moon { display: none; }
+:root[data-theme="light"] .sun { display: none; } :root[data-theme="light"] .moon { display: block; }
+.wallet { height: 44px; padding: 0 16px; white-space: nowrap; border: 1px solid var(--line); border-radius: 12px; background: none; font-size: 20px; }
+.wallet .short, .wallet .tiny { display: none; }
+
+/* the page: what to do on top, the patch under it. Full width, so the rows of soil can run off both edges */
+.page { padding: 8px 0 40px; overflow-x: clip; }
+.top { width: var(--col); margin-inline: auto; }
+.field { width: var(--wide); margin-inline: auto; }
+.top { display: grid; gap: 40px; margin-block: 0 64px; }
+/* one column until there's room for two, kept to a reading width on the left edge */
+@media (min-width: 600px) and (max-width: 799px) { .top { width: min(560px, var(--col)); margin-inline: 16px auto; } }
+@media (min-width: 800px) { .top { grid-template-columns: 1fr clamp(340px, 36vw, 440px); grid-template-areas: "head pot" "how stand"; align-items: center; gap: 40px; } }
+/* on a wide screen, two even halves of 440: the headline just fits its half at 70px, the box fills the other */
+@media (min-width: 960px) { .top { grid-template-columns: minmax(440px, 1fr) minmax(340px, 440px); column-gap: 64px; margin-block: 24px 64px; } }
+h1 { font-size: 50px; line-height: 1; margin: 0 0 24px; text-wrap: balance; }
+@media (min-width: 960px) { h1 { font-size: 70px; } }
+/* the three steps of the night, each beside its picture: now at full strength, the rest faded, with their clocks */
+.how { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; font-size: 16px; max-width: 34em; }
+.how li { display: grid; grid-template-columns: 56px 1fr; gap: 16px; align-items: center; text-wrap: balance; transition: opacity 200ms var(--ease); }
+.how li.off { opacity: 0.5; }
+.step { display: grid; gap: 2px; }
+.head { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; }
+.how b, .when { font-size: 20px; line-height: 1.2; }
+@media (min-width: 960px) { .how b, .when { font-size: 25px; } } /* (2.5x the font's 10px grid: still whole pixels on a retina screen) */
+.when { color: var(--muted); }
+/* the pictures: the same pumpkin three ways (whole, a knife in it, Great), at 2x, centred on the pumpkin not its stem.
+   On a phone they stand as tall as their two lines; with two columns they get their full size */
+.ico { position: relative; display: grid; place-items: center; width: 56px; height: 56px; }
+.ico img { width: 76px; height: 76px; margin: -10px; transform: translateY(-6px); image-rendering: pixelated; }
+.ico img.halo { width: 96px; height: 96px; margin: -20px; } /* (the glow's five pixels each side, so the pumpkin stays put) */
+@media (min-width: 800px) {
+  .how li { grid-template-columns: 76px 1fr; }
+  .ico { width: 76px; height: 76px; }
+  .ico img { margin: 0; }
+  .ico img.halo { margin: -10px; }
+}
+/* the rules live in the header: words on a wide screen, a ? on a phone */
+.navlink { height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: none; font-size: 20px; }
+.navlink .short { display: none; }
+@media (max-width: 600px) { .navlink { width: 38px; padding: 0; } .navlink .long { display: none; } .navlink .short { display: inline; } .mark span { display: none; } }
+
+/* the side: the pot hangs in the sky, and under it the stand, where you buy (only that sits in a box) */
+.side { display: grid; gap: 24px; }
+.stand { padding: 16px; box-shadow: inset 0 0 0 1px var(--line); border-radius: 20px; background: rgba(9, 11, 18, 0.62); }
+:root[data-theme="light"] .stand { background: rgba(255, 253, 248, 0.72); }
+/* a picture and its words (the patch's own rows are .row) */
+.media { display: grid; grid-template-columns: 112px 1fr; gap: 16px; align-items: center; }
+.media div { display: grid; gap: 4px; min-width: 0; }
+.pic { display: grid; place-items: center; width: 112px; height: 80px; }
+.pot { padding-inline: 16px; } /* (the box's padding, so the moon sits over the pack and the words line up) */
+.pot canvas { width: 72px; height: 72px; image-rendering: pixelated; }
+#pot { font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+@media (min-width: 960px) { #pot { font-size: 40px; } }
+#potLine, .item span { font-size: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.item { margin-bottom: 16px; }
+.item[hidden] { display: none; }
+.item b { font-size: 20px; line-height: 1.2; }
+@media (min-width: 960px) { .item b { font-size: 25px; } } /* (the pack's heading matches the steps') */
+/* the pack: a pumpkin and its two knives standing either side (pumpkin at 2x, knives at 4x) */
+.kit { position: relative; }
+.kit img { position: absolute; left: 18px; top: 0; width: 76px; height: 76px; image-rendering: pixelated; }
+.kit svg { position: absolute; bottom: 0; width: 18px; height: 60px; image-rendering: pixelated; }
+.kit svg:first-of-type { left: 4px; transform: rotate(-16deg); }
+.kit svg:last-of-type { right: 4px; transform: rotate(16deg); }
+/* how many: ten pumpkins in a row, lit up to the handle under them. Drag the handle, tap a pumpkin, or use the arrow
+   keys. --n is the handle's place in pumpkins (1 to 10): whole at rest, in between while it's dragged */
+.qty { --n: 1; position: relative; height: 72px; margin: 0 0 16px; container-type: inline-size; cursor: grab; touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.qty[hidden] { display: none; }
+.qty.dragging { cursor: grabbing; }
+.qty input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
+.qty:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 12px; }
+.qty.busy { cursor: progress; }
+/* pumpkin k (0 to 9) is centred 15px in from the edge plus k ninths of the rest, so the first and last line up with
+   the button's edges (each pumpkin has 4px of clear art either side) and the handle can use the same sum */
+.slots { position: relative; display: block; height: 40px; }
+.rail { position: absolute; left: 15px; right: 15px; top: 55px; height: 2px; background: var(--line); }
+.rail i { position: absolute; inset: 0; background: var(--accent); transform-origin: left; transform: scaleX(calc((var(--n) - 1) / 9)); }
+.knob { position: absolute; left: 0; top: 44px; width: 20px; height: 24px; background: var(--accent); box-shadow: 0 2px 0 #a2560f;
+  transform: translateX(calc(15px + (var(--n) - 1) * (100cqw - 30px) / 9 - 50%)); }
+.knob::before { content: ""; position: absolute; left: 6px; top: 6px; width: 2px; height: 12px; background: var(--accent-ink); opacity: 0.5; box-shadow: 6px 0 0 var(--accent-ink); }
+.knob, .rail i { transition: transform 150ms var(--ease); }
+.qty.dragging .knob, .qty.dragging .rail i { transition: none; }
+.slots img { position: absolute; bottom: 0; left: calc(15px + var(--k) * (100cqw - 30px) / 9 - 19px); width: 38px; height: 38px; image-rendering: pixelated; opacity: 0.22; transition: opacity 150ms var(--ease); }
+.slots img.on { opacity: 1; animation: hop 180ms var(--ease); }
+.slots img.gone { opacity: 0.06; }
+@keyframes hop { 40% { transform: translateY(-4px); } }
+.stand > .primary { width: 100%; }
+/* how many are left of the 1,031: a pixel bar */
+.supply { display: grid; gap: 8px; margin-top: 16px; }
+.supply[hidden] { display: none; }
+.meter { display: block; height: 8px; background: rgba(240, 138, 36, 0.16); }
+.meter i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 600ms var(--ease); }
+#supplyText { font-family: var(--game); font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums; }
+#potLine:empty { display: none; }
+/* who owns each pumpkin, in the soil under it, and its knives on carving night */
+.plant .tag { position: absolute; left: 50%; bottom: calc(var(--plant) * -0.045); transform: translateX(-50%); white-space: nowrap; font-size: 10px; line-height: 1; color: var(--muted); pointer-events: none; }
+:root[data-theme="light"] .plant .tag { color: var(--ink); } /* (muted reads too faint on day soil) */
+.plant .tag i { display: inline-block; width: 2px; height: 0.8em; margin-left: 3px; background: #dfe3ea; vertical-align: -1px; }
+.rules { margin: 8px 0 16px; padding: 0 0 0 20px; font-size: 16px; }
+.rules li { margin: 0 0 12px; }
+.rules b { font-weight: 700; }
+.primary { flex: 1; min-width: 0; display: inline-grid; place-items: center; height: 52px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; text-decoration: none; }
+@media (hover: hover) and (pointer: fine) { .primary:hover { filter: brightness(1.06); } }
+.primary[aria-disabled="true"] { background: none; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); cursor: default; }
+.wait { cursor: progress; }
+.ghost { height: 52px; padding: 0 16px; border: 1px solid var(--line); border-radius: 12px; background: none; font-size: 20px; text-decoration: none; display: inline-grid; place-items: center; }
+.msg { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.msg:empty { display: none; }
+.msg.bad, .note.bad { color: var(--bad); }
+
+/* two columns that line up (after the rules they change): the headline level with the pot, and the three steps spread
+   over exactly the height of the buy box, the first level with its top and the last with its bottom */
+@media (min-width: 800px) {
+  .hero, .side { display: contents; }
+  h1 { grid-area: head; margin: 0; }
+  .how { grid-area: how; align-self: stretch; align-content: space-between; }
+  .pot { grid-area: pot; }
+  .stand { grid-area: stand; }
+}
+@media (min-width: 960px) {
+  .stand { padding: 24px; }
+  .pot { padding-inline: 24px; }
+}
+
+/* the live feed: a ticker across the top of what just happened in the patch, newest first */
+.ticker { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 16px; overflow: hidden;
+  background: rgba(4, 5, 9, 0.6); border-bottom: 1px solid var(--line); font-family: var(--game); font-size: 20px; line-height: 1; color: var(--muted); }
+:root[data-theme="light"] .ticker { background: rgba(255, 253, 248, 0.6); }
+.ticker[hidden] { display: none; }
+.live { flex: none; width: 8px; height: 8px; background: var(--accent); animation: live 1.6s steps(1) infinite; }
+@keyframes live { 50% { opacity: 0.25; } }
+.track { flex: 1; min-width: 0; overflow: hidden; }
+/* newest at the left; whatever doesn't fit runs off the right edge. A new line slides in, nothing scrolls on its own */
+.run { display: flex; gap: 32px; width: max-content; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.run b { font-weight: 400; color: var(--ink); }
+.run .new { animation: arrive 400ms var(--ease) both; }
+@keyframes arrive { from { opacity: 0; transform: translateX(-24px); } }
+@media (prefers-reduced-motion: reduce) { .run .new, .live { animation: none; } }
+.feed li.new { animation: fadein 300ms var(--ease) both; }
+
+/* filters with counts, and the clock */
+.filters { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; }
+.tabs { display: flex; justify-content: safe center; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs a { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 12px; font-size: 20px; text-decoration: none; color: var(--muted); }
+.tabs a[aria-current="page"] { color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.tabs span { font-variant-numeric: tabular-nums; }
+
+
+/* the patch: rows of soil with pumpkins sitting in them, every other row set in by half a pumpkin */
+.patch { --plant: 84px; display: grid; padding: 16px 0 24px; /* (room over the first row for a knife's handle) */ margin: 0 auto; max-width: 100%; }
+@media (min-width: 960px) { .patch { --plant: 128px; padding-top: 24px; } .plant .tag { font-size: 14px; } } /* (names: 10px on the small pumpkins, the small-print size on the big ones) */
+/* each row of soil runs deep enough under its pumpkins for their owners' names */
+.row { position: relative; display: flex; height: calc(var(--plant) * 0.88); padding-left: var(--inset, 0); }
+.row::before { content: ""; position: absolute; left: -100vw; right: -100vw; bottom: 0; height: calc(var(--plant) * 0.36);
+  background: var(--soil) 0 0 / 64px 48px repeat-x; image-rendering: pixelated; }
+.plant { position: relative; isolation: isolate; flex: none; width: calc(var(--plant) * 0.9); height: var(--plant); margin-top: calc(var(--plant) * -0.22);
+  padding: 0; border: 0; background: none; }
+.plant .stake, .plant .tag { z-index: 2; }
+.plant img { position: absolute; z-index: 1; left: 50%; bottom: calc(var(--plant) * 0.1); /* sat in the soil, not on its edge */ width: var(--plant); height: var(--plant); margin-left: calc(var(--plant) / -2);
+  image-rendering: pixelated; transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); transform-origin: 50% 100%; }
+.plant:active img { transform: translate(var(--dx, 0), var(--dy, 0)) scale(calc(var(--s, 1) * 0.96)); }
+/* hover lifts a pumpkin off the soil and tips it, like picking it up; a press still gives a little */
+@media (hover: hover) and (pointer: fine) {
+  .plant:hover img, .plant:focus-visible img { transform: translate(var(--dx, 0), calc(var(--dy, 0) - 6px)) rotate(-4deg) scale(var(--s, 1)); }
+  .plant:hover:active img { transform: translate(var(--dx, 0), calc(var(--dy, 0) - 3px)) rotate(-2deg) scale(calc(var(--s, 1) * 0.96)); }
+}
+.plant img.fresh { animation: pop 300ms var(--ease) both; }
+/* a pumpkin just bought drops into the patch and squashes as it lands */
+.plant img.drop { animation: drop 520ms var(--ease) both; }
+@keyframes drop {
+  0% { opacity: 0; transform: translate(var(--dx, 0), calc(var(--dy, 0) - 70px)) scale(var(--s, 1)); }
+  55% { opacity: 1; transform: translate(var(--dx, 0), calc(var(--dy, 0) + 3px)) scale(calc(var(--s, 1) * 1.06), calc(var(--s, 1) * 0.92)); }
+  100% { transform: translate(var(--dx, 0), var(--dy, 0)) scale(var(--s, 1)); }
+}
+@keyframes pop { from { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.9); } }
+/* your own get a little sign stuck in the soil */
+.plant .stake { position: absolute; left: -2%; bottom: 12%; padding: 2px 4px 1px; background: var(--accent); color: var(--accent-ink); font-size: calc(var(--plant) * 0.15); line-height: 1; box-shadow: 0 2px 0 #a2560f; }
+.plant .stake.stabbed { background: #c2301f; color: #fff1e6; box-shadow: 0 2px 0 #7a1a10; }
+.plant .stake::after { content: ""; position: absolute; left: 50%; top: calc(100% + 2px); width: 3px; height: calc(var(--plant) * 0.12); margin-left: -1px; background: #6a4322; }
+/* a pumpkin you can stab takes the knife as its cursor */
+.plant.target { cursor: var(--knife-cursor, pointer); }
+.empty { margin: 24px 0; font-size: 16px; color: var(--muted); }
+
+/* the sheet: pinned near the top so the picture never moves while its rows change */
+.sheet { width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: max(16px, 6vh) auto auto; padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--raised); color: var(--ink); overflow: auto; overscroll-behavior: contain; } /* (its scroll stops at its own end, not the page's) */
+.sheet::backdrop { background: rgba(5, 7, 10, 0.6); }
+html:has(.sheet[open]) { overflow: hidden; } /* (the patch stays put behind an open sheet; the gutter keeps desktop from jumping) */
+.sheet[open] { animation: rise 200ms var(--ease); }
+@keyframes rise { from { opacity: 0; transform: scale(0.96); } }
+.sheet.fromTile[open] { animation: grow 220ms var(--ease); } /* out of the tile you tapped */
+@keyframes grow { from { opacity: 0; transform: scale(0.85); } }
+.close { position: absolute; top: 8px; right: 8px; }
+.sheet h2 { font-size: 30px; line-height: 1.1; margin: 0 40px 4px 0; }
+.sheet .art { position: relative; width: 100%; aspect-ratio: 1; border-radius: 12px; overflow: hidden; margin: 8px 0 16px; background: var(--bg); }
+.sheet .art img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+
+/* your two knives in the picture, standing beside your own pumpkin, at the picture's own pixel size */
+.sheet .art .knife { position: absolute; width: calc(100% * 6 / 37.5); height: calc(100% * 20 / 37.5); image-rendering: pixelated; }
+.sheet .art .pair .knife { bottom: 12%; }
+.sheet .art .pair .knife:first-child { left: 4%; transform: rotate(-12deg); }
+.sheet .art .pair .knife:last-child { right: 4%; transform: rotate(12deg); }
+
+/* your knives, at the bottom of the screen while the buy box is out of view: how many you hold and what to do next */
+.knives { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 4; display: flex; align-items: center; gap: 12px;
+  height: 52px; padding: 0 20px 0 12px; transform: translateX(-50%); border: 0; border-radius: 12px; background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line); font-family: var(--game); font-size: 20px; white-space: nowrap; animation: lift 200ms var(--ease); }
+.knives[hidden] { display: none; }
+body.armed .foot { padding-bottom: 100px; } /* (the bar never covers the last of the page) */
+.knives svg { display: block; width: 12px; height: 40px; transform: rotate(16deg); image-rendering: pixelated; }
+.knives.go { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+@keyframes lift { from { opacity: 0; translate: 0 12px; } }
+
+/* the one big moment plays on this canvas (carve.ts) */
+.sheet .art canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.swap, .arrive { animation: fadein 200ms var(--ease) both; } /* the name and traits land as the carve ends */
+@keyframes fadein { from { opacity: 0; } }
+
+/* under the picture: one line on who has it, then a carved one's traits, two to a row, each with how rare it is */
+.sheet:focus { outline: none; }
+.sheet .by { margin: 0 0 24px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.sheet .by b { font-weight: 500; color: var(--ink); }
+.traits { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; margin: 0 0 24px; }
+.traits div { min-width: 0; }
+.traits dt { font-size: 14px; color: var(--muted); }
+.traits dd { margin: 2px 0 0; font-size: 16px; font-weight: 500; }
+.traits small { margin-left: 8px; font-size: 14px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions .primary { flex: 1; min-width: max-content; } /* (a long label wraps the row, never gets cut) */
+.actions .ghost { flex: none; }
+.actions + .actions { margin-top: 8px; }
+.note { margin: 0 0 12px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.note.aside { margin: 24px 0 8px; } /* (a second choice, set apart from the first) */
+.walletRow { display: flex; align-items: center; gap: 12px; width: 100%; height: 52px; padding: 0 16px; margin: 0 0 8px; border: 1px solid var(--line); border-radius: 12px; background: none; font-size: 16px; font-weight: 500; text-decoration: none; }
+.walletRow img { width: 24px; height: 24px; border-radius: 8px; }
+.walletRow:disabled { opacity: 0.5; cursor: default; }
+
+.foot { max-width: 976px; margin: 0 auto; padding: 16px 16px calc(32px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; text-wrap: balance; font-size: 14px; color: var(--muted); }
+.foot .links { display: flex; gap: 16px; }
+
+/* phones: the short address, so the wallet button keeps its gutter */
+@media (max-width: 420px) {
+  .bar { gap: 8px; }
+  .tools { gap: 2px; }
+  .icon { width: 38px; }
+  .wallet .long { display: none; } .wallet .short { display: inline; }
+}
+
+/* the narrowest phones: tighter controls so nothing runs past the edge */
+@media (max-width: 360px) {
+  :root { --col: calc(100% - 24px); --wide: calc(100% - 24px); }
+  .bar { padding: 12px; }
+  .pot canvas { width: 48px; height: 48px; }
+  .icon { width: 36px; }
+  .wallet { padding: 0 8px; font-size: 14px; }
+  .wallet .short { display: none; } .wallet .tiny { display: inline; }
+  .primary { padding: 0 8px; }
+}
+
+/* under 360 the knives step out of the pack, so "10 pumpkins + 20 knives" keeps one line */
+@media (max-width: 359px) {
+  .item { grid-template-columns: 76px 1fr; }
+  .kit { width: 76px; }
+  .kit img { left: 0; }
+  .kit svg { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slots img.on, .plant img.fresh, .plant img.drop, .sheet[open], .sheet.fromTile[open], .swap, .arrive { animation-name: fadein; }
+  .tw, .bat, .bat svg, .bat g { animation: none; }
+  .knob, .rail i { transition: none; }
+  .knives { animation-name: fadein; }
+  .bat { display: none; }
+  .flash { animation-name: fadein; animation-direction: reverse; }
+}
