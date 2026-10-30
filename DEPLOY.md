@@ -4,13 +4,13 @@ Everything below has run on a local copy of mainnet. Mainnet needs your ETH, so 
 
 ## 1. Fund the deployer, never FE35
 
-A fresh keystore, `cryptopunkins-deployer`, is on this Mac (made 10-30; its password is in `~/.foundry/cryptopunkins-deployer.pw`, owner-only). Send it 0.015 ETH:
+A fresh keystore, `cryptopunkins-deployer`, is on this Mac (made 10-30; its password is in `~/.foundry/cryptopunkins-deployer.pw`, owner-only). Send it 0.03 ETH:
 
 ```
 0x31297285F41B2D82129Ba6024F5d1bD2BB92Ad19
 ```
 
-The deploy is three transactions, about 13.4M gas: 0.01 ETH at 0.75 gwei. The script says exactly how much more to send if gas rises.
+The deploy is three transactions, about 13.8M gas: 0.0125 ETH at 0.9 gwei. Before each one goes out the wallet has to cover its whole gas limit at twice the base fee (the art's is 11.8M), so it needs about 0.027 ETH at 0.9 gwei; what's left pays for the payouts. The script says exactly how much more to send.
 
 ## 2. Ship
 

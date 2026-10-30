@@ -18,9 +18,11 @@ if [[ -z $DRY && -f $SAVED ]] && has_code ${$(<$SAVED)[(w)1]}; then
   GAME=${$(<$SAVED)[(w)1]}; FROM=${$(<$SAVED)[(w)2]}
   echo "Game already on chain: $GAME (from block $FROM)"
 else
-  # 1. enough ETH for the three transactions (about 13.4M gas) at today's price, with room for it to rise a third
-  GAS=$(cast gas-price --rpc-url $RPC)
-  NEED=$(( GAS * 13400000 * 4 / 3 ))
+  # 1. enough ETH up front: forge sends each transaction with its gas limit (the estimate plus 30%) at a max fee of
+  # twice the base fee, and the wallet must cover that before it's sent. The art's (11.8M) binds, after the edition
+  # data (1.85M) is paid for; 15% more in case the base fee climbs. About 13.8M gas is actually spent.
+  BASE=$(cast basefee --rpc-url $RPC)
+  NEED=$(( (BASE * 2 * 11800000 + BASE * 1850000) * 115 / 100 ))
   HAVE=$(cast balance $DEPLOYER --rpc-url $RPC)
   if (( HAVE < NEED )); then
     echo "Send $(cast from-wei $(( NEED - HAVE ))) ETH more to $DEPLOYER, then run this again."
