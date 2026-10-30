@@ -224,9 +224,10 @@ async function send(request: Parameters<WalletClient['writeContract']>[0]): Prom
   await onMainnet();
   // the wallet's own account (a local key signs itself; an injected wallet signs in its window)
   const account = session.wallet!.account ?? request.account;
-  const estimate = await pub.estimateContractGas({ ...request, account } as never);
-  const gas = estimate + HEADROOM < MOST_GAS ? estimate + HEADROOM : MOST_GAS;
-  return session.wallet!.writeContract({ ...request, account, gas } as never);
+  // (if the estimate can't be had, the wallet sizes the gas itself rather than the send failing)
+  const estimate = await pub.estimateContractGas({ ...request, account } as never).catch(() => null);
+  const gas = estimate === null ? undefined : estimate + HEADROOM < MOST_GAS ? estimate + HEADROOM : MOST_GAS;
+  return session.wallet!.writeContract({ ...request, account, ...(gas ? { gas } : {}) } as never);
 }
 
 /// Simulates first so a rule the contract would refuse comes back as a plain sentence before the wallet opens.
