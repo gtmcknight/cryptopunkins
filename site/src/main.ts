@@ -571,10 +571,10 @@ function renderSheet(justBought = false) {
     } else if (yours) {
       // its face now, for one stab: say exactly what that costs before the wallet asks
       if (selfKnife) {
-        const cost = p.knives === 2 ? 'Uses 1 of its 2 stabs. The other is lost, and it’s out of the pot.'
-          : p.knives === 1 ? 'Uses its last stab, and it’s out of the pot.'
-          : `Uses a stab from #${selfKnife.id}, and it’s out of the pot.`;
-        extra = `<p class="note aside">Can’t wait? ${cost}</p><div class="actions"><button class="ghost" data-act="self">Stab it now to reveal</button></div>`;
+        const cost = p.knives === 2 ? 'Stab it yourself to see its face now. That uses up both its stabs, and it’s out of the pot.'
+          : p.knives === 1 ? 'Stab it yourself to see its face now. That uses its last stab, and it’s out of the pot.'
+          : `Stab it with one of #${selfKnife.id}’s stabs to see its face now. It’s out of the pot.`;
+        extra = `<p class="note aside">Can’t wait? ${cost}</p><div class="actions"><button class="ghost" data-act="self">Reveal it now</button></div>`;
       }
       const post = `<a class="ghost" target="_blank" rel="noopener" href="${xIntent(`Still uncut. Carving opens at ${opensET()} on Halloween`, linkTo(p.id))}">Post</a>`;
       if (p.knives) art = 'pair';
