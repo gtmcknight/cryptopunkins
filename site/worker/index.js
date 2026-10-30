@@ -3,7 +3,8 @@
 // It has its own route, taylor.fyi/cryptopunkins*, so it takes the folder off itself (the page uses relative URLs).
 
 // (eth_estimateGas too: the page sizes each transaction's gas before the wallet sends it; like eth_call, only to the game)
-const READS = new Set(['eth_call', 'eth_estimateGas', 'eth_blockNumber', 'eth_chainId', 'eth_getTransactionReceipt', 'eth_getBlockByNumber', 'eth_getLogs']);
+// (eth_getTransactionByHash: waiting on a transaction, viem looks it up to follow a wallet's speed-up or cancel)
+const READS = new Set(['eth_call', 'eth_estimateGas', 'eth_blockNumber', 'eth_chainId', 'eth_getTransactionReceipt', 'eth_getTransactionByHash', 'eth_getBlockByNumber', 'eth_getLogs']);
 const ENS = '0xeeeeeeee14d718c2b47d9923deab1335e144eeee'; // ENS's universal resolver: names for addresses
 const FEED_BLOCKS = 10_000; // the most the live feed reads in one go (public nodes cap log ranges near this)
 // publicnode takes every read the page makes (measured 10-30: 9,000-block logs, batches of 10); drpc only small ones

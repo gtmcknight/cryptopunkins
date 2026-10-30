@@ -211,6 +211,9 @@ export function plain(e: unknown): string {
     if (/insufficient funds/i.test(e.message)) return 'Not enough ETH for this plus gas.';
   }
   const m = (e as Error)?.message ?? '';
+  // (these two come after it was sent, so never "nothing was sent")
+  if (m === 'reverted') return 'It was sent, but the chain turned it down: only the gas was spent. Try again.';
+  if (m === 'not landed') return 'Sent, and still waiting to land. This page updates when it does.';
   if (/rejected|denied/i.test(m)) return 'Nothing was sent.';
   return 'That didn’t go through. Nothing was sent. Try again.';
 }
@@ -256,7 +259,14 @@ export async function claim(ids: number[]): Promise<Hash> {
 
 /// Waits for the transaction, giving up after `ms` so nothing spins forever.
 export async function landed(hash: Hash, ms = 180_000) {
-  const r = await pub.waitForTransactionReceipt({ hash, timeout: ms, pollingInterval: 2_000 });
+  const until = Date.now() + ms;
+  let r = await pub.waitForTransactionReceipt({ hash, timeout: ms, pollingInterval: 2_000 }).catch(() => null);
+  // (if viem's wait gave up early on a node error, keep asking for the receipt itself until the time's up)
+  while (!r && Date.now() < until) {
+    await new Promise((ok) => setTimeout(ok, 2_000));
+    r = await pub.getTransactionReceipt({ hash }).catch(() => null);
+  }
+  if (!r) throw new Error('not landed');
   if (r.status !== 'success') throw new Error('reverted');
   return r;
 }
