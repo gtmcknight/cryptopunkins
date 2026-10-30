@@ -26,6 +26,7 @@ const state = {
   count: 1,
   busy: false,
   open: Number(params.get('p')) || 0,
+  activity: params.has('activity'), // the activity sheet: everything that's happened, newest first
   // the pumpkin someone came to carve: connecting or buying a knife brings them back to it
   returnTo: 0,
   revealing: new Set<number>(),
@@ -532,13 +533,15 @@ function show(html: string, focusAct = true) {
   origin = null;
 }
 
-function setUrl(id: number) {
+function setUrl(id: number, activity = false) {
   const u = new URL(location.href);
   if (id) u.searchParams.set('p', String(id)); else u.searchParams.delete('p');
-  history.replaceState(null, '', u);
+  if (activity) u.searchParams.set('activity', ''); else u.searchParams.delete('activity');
+  history.replaceState(null, '', u.toString().replace('activity=', 'activity'));
 }
 
 function openSheet(id: number, justBought = false) {
+  state.activity = false;
   state.open = id;
   setUrl(id);
   renderSheet(justBought);
@@ -892,8 +895,8 @@ async function follow(latest: bigint) {
   feedTo = latest;
   feed.push(...got);
   feed.sort((a, b) => (a.block === b.block ? b.index - a.index : a.block > b.block ? -1 : 1));
-  feed.splice(40);
   renderFeed();
+  if (state.activity && sheetEl().open) renderActivity();
 }
 
 function line(h: Happening) {
@@ -907,16 +910,21 @@ function line(h: Happening) {
   return `${who} stabbed ${own ? (isMe(h.who) ? 'your own' : 'their own') : ''} #${h.id}${face}`.replace('  ', ' ');
 }
 
-// the ticker: the last dozen things that happened, newest first, and a new one slides in at the left
-let tickerHtml = '';
-function renderFeed() {
-  // (back-to-back buys by one wallet read as one line: "bought 3 pumpkins")
+/// The feed with back-to-back buys by one wallet as one line ("minted 3 pumpkins").
+function grouped(limit = Infinity) {
   const shown: Happening[] = [];
   for (const h of feed) {
     const last = shown[shown.length - 1];
     if (last && h.kind === 'bought' && last.kind === 'bought' && last.who === h.who) shown[shown.length - 1] = { ...last, count: last.count + h.count };
-    else if (shown.length < 12) shown.push(h);
+    else if (shown.length < limit) shown.push(h);
   }
+  return shown;
+}
+
+// the ticker: the last dozen things that happened, newest first, and a new one slides in at the left
+let tickerHtml = '';
+function renderFeed() {
+  const shown = grouped(12);
   const was = $('ticker').hidden;
   $('ticker').hidden = !shown.length;
   if (was !== $('ticker').hidden) scenery(); // (the ticker moves everything down: the hills and the bat's path follow)
@@ -929,6 +937,35 @@ function renderFeed() {
   $('feed').innerHTML = html;
   fitTicker();
   for (const h of shown) told.add(`${h.block}:${h.index}`);
+}
+
+/// Everything that's happened, in a sheet: the ticker's lines with a picture each, how long ago, and the transaction.
+function openActivity() {
+  state.open = 0;
+  state.activity = true;
+  setUrl(0, true);
+  renderActivity();
+}
+
+function renderActivity() {
+  const ago = (block: bigint) => {
+    const s = Number(feedTo - block) * 12; // (a block every 12 seconds)
+    return s < 60 ? 'now' : s < 3600 ? `${Math.floor(s / 60)}m` : s < 86400 ? `${Math.floor(s / 3600)}h` : `${Math.floor(s / 86400)}d`;
+  };
+  const pic = (h: Happening) => {
+    const p = state.pumpkins.find((x) => x.id === h.id);
+    if (h.kind === 'claimed') return `<img class="halo" alt="" src="${haloSprite()}">`;
+    if (h.kind === 'carving') return `<img alt="" src="${p?.look === CARVED ? sprite(CARVED, p.edition) : sprite(WHOLE, 0, undefined, false, 'in', tintOf(h.id))}">`;
+    return `<img alt="" src="${sprite(WHOLE, 0, undefined, false, '', h.id ? tintOf(h.id) : 0)}">`;
+  };
+  const rows = grouped().map((h) => {
+    const open = h.id ? ` data-open="${h.id}"` : '';
+    return `<li><button class="pick"${open}${h.id ? '' : ' disabled'}><span class="ico">${pic(h)}</span><span>${line(h)}</span></button>`
+      + `<a class="ago" href="https://etherscan.io/tx/${h.tx}" target="_blank" rel="noopener">${ago(h.block)}</a></li>`;
+  }).join('');
+  show(`
+    <h2 id="sheetTitle">Activity</h2>
+    ${rows ? `<ol class="activity">${rows}</ol>` : '<p class="note">Nothing yet.</p>'}`);
 }
 
 /// Only whole lines: one that would run off the edge isn't shown at all.
@@ -990,6 +1027,7 @@ async function main() {
     say($('buyMsg'), 'Can’t reach the network right now. Retrying…', true);
   }
   if (state.open) openSheet(state.open);
+  else if (state.activity) openActivity();
   void pub.getBlockNumber().then((b) => follow(b)).catch(() => {});
   scenery(); // the field's top is known now that the page has laid out
   setInterval(() => { if (!document.hidden) void poll(); }, 4000);
@@ -1036,9 +1074,10 @@ async function main() {
   new IntersectionObserver(([e]) => { buyUnder = e.isIntersecting; renderKnives(); }, { rootMargin: '-90% 0px 0px 0px' }).observe($('buy')); // (the bar's strip)
   void knifeCursor().then((c) => document.documentElement.style.setProperty('--knife-cursor', c)).catch(() => {});
   $('howto').addEventListener('click', openHelp);
+  $('ticker').addEventListener('click', openActivity);
   // a name that just came back from ENS: redraw what shows addresses (once, however many land together)
   let naming = 0;
-  onNames(() => { clearTimeout(naming); naming = window.setTimeout(() => { tickerHtml = ''; renderFeed(); renderWallet(); renderPatch(); if (sheetEl().open && state.open) renderSheet(); }, 150); });
+  onNames(() => { clearTimeout(naming); naming = window.setTimeout(() => { tickerHtml = ''; renderFeed(); renderWallet(); renderPatch(); if (sheetEl().open && state.open) renderSheet(); if (sheetEl().open && state.activity) renderActivity(); }, 150); });
   // the sounds wake with the first tap or key (caught on the way down, so the tap that wakes them can also play one)
   for (const kind of ['pointerdown', 'keydown'] as const) addEventListener(kind, wake, true);
   $('theme').addEventListener('click', () => {
@@ -1070,9 +1109,11 @@ async function main() {
   });
   const sheet = sheetEl();
   $('close').addEventListener('click', () => sheet.close());
-  sheet.addEventListener('close', () => { state.open = 0; shownHtml = ''; setUrl(0); });
+  sheet.addEventListener('close', () => { state.open = 0; state.activity = false; shownHtml = ''; setUrl(0); });
   sheet.addEventListener('click', (e) => {
     if (e.target === sheet) return sheet.close(); // the backdrop
+    const pick = (e.target as HTMLElement).closest('[data-open]') as HTMLElement | null;
+    if (pick) return openSheet(Number(pick.dataset.open));
     const btn = (e.target as HTMLElement).closest('[data-act],[data-wallet]') as HTMLElement | null;
     if (!btn) return;
     if (btn.dataset.wallet !== undefined) return void onWallet(btn);

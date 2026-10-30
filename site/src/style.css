@@ -209,13 +209,14 @@ ol.steps li:first-child { border-top: 0; padding-top: 0; }
 }
 
 /* the live feed: a ticker across the top of what just happened in the patch, newest first */
-.ticker { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 16px; overflow: hidden;
+.ticker { position: relative; z-index: 2; display: flex; align-items: center; gap: 12px; width: 100%; height: 36px; padding: 0 16px; overflow: hidden; border: 0; text-align: left;
   background: rgba(4, 5, 9, 0.6); border-bottom: 1px solid var(--line); font-family: var(--game); font-size: 20px; line-height: 1; color: var(--muted); }
 :root[data-theme="light"] .ticker { background: rgba(255, 253, 248, 0.6); }
 .ticker[hidden] { display: none; }
 .live { flex: none; width: 8px; height: 8px; background: var(--accent); animation: live 1.6s steps(1) infinite; }
 @keyframes live { 50% { opacity: 0.25; } }
-.track { flex: 1; min-width: 0; overflow: hidden; }
+.track { display: block; flex: 1; min-width: 0; overflow: hidden; }
+@media (hover: hover) and (pointer: fine) { .ticker:hover .run span { color: var(--ink); } } /* (it opens the whole feed) */
 /* newest at the left; whatever doesn't fit runs off the right edge. A new line slides in, nothing scrolls on its own */
 .run { display: flex; gap: 32px; width: max-content; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .run b { font-weight: 400; color: var(--ink); }
@@ -223,6 +224,16 @@ ol.steps li:first-child { border-top: 0; padding-top: 0; }
 @keyframes arrive { from { opacity: 0; transform: translateX(-24px); } }
 @media (prefers-reduced-motion: reduce) { .run .new, .live { animation: none; } }
 .feed li.new { animation: fadein 300ms var(--ease) both; }
+/* the activity sheet: every line, a picture each, how long ago (a link to the transaction) */
+.activity { margin: 16px 0 0; padding: 0; list-style: none; font-size: 16px; }
+.activity li { display: flex; align-items: center; gap: 16px; border-top: 1px solid var(--line); }
+.activity li:first-child { border-top: 0; }
+.activity .pick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; padding: 8px 0; border: 0; background: none; text-align: left; }
+.activity .pick:disabled { cursor: default; }
+.activity .ico, .activity .ico img { width: 38px; height: 38px; margin: 0; transform: none; }
+.activity .ico img.halo { width: 48px; height: 48px; margin: -5px; }
+.activity .ago { flex: none; font-size: 14px; color: var(--muted); text-decoration: none; font-variant-numeric: tabular-nums; }
+@media (hover: hover) and (pointer: fine) { .activity .pick:not(:disabled):hover, .activity .ago:hover { color: var(--accent); } }
 
 /* filters with counts, and the clock */
 .filters { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; }

@@ -88,7 +88,7 @@ export async function readPatch(): Promise<Patch> {
   };
 }
 
-export type Happening = { block: bigint; index: number; kind: 'bought' | 'carving' | 'claimed' | 'fed'; who: Address; id: number; count: number; amount: bigint };
+export type Happening = { block: bigint; index: number; tx: string; kind: 'bought' | 'carving' | 'claimed' | 'fed'; who: Address; id: number; count: number; amount: bigint };
 
 /// What happened in the patch between two blocks, for the live feed.
 export async function readFeed(fromBlock: bigint, toBlock: bigint): Promise<Happening[]> {
@@ -99,12 +99,12 @@ export async function readFeed(fromBlock: bigint, toBlock: bigint): Promise<Happ
     logs.push(...(await pub.getContractEvents({ address: config.game, abi, fromBlock: a, toBlock: b, strict: true })));
   }
   const out: Happening[] = [];
-  for (const l of logs as { eventName: string; args: Record<string, unknown>; blockNumber: bigint; logIndex: number }[]) {
-    const a = l.args;
-    if (l.eventName === 'Bought') out.push({ block: l.blockNumber, index: l.logIndex, kind: 'bought', who: a.buyer as Address, id: Number(a.firstId), count: Number(a.count), amount: 0n });
-    if (l.eventName === 'Carving') out.push({ block: l.blockNumber, index: l.logIndex, kind: 'carving', who: a.carver as Address, id: Number(a.id), count: 1, amount: 0n });
-    if (l.eventName === 'Claimed') out.push({ block: l.blockNumber, index: l.logIndex, kind: 'claimed', who: a.owner as Address, id: Number(a.id), count: 1, amount: a.amount as bigint });
-    if (l.eventName === 'Fed') out.push({ block: l.blockNumber, index: l.logIndex, kind: 'fed', who: a.from as Address, id: 0, count: 1, amount: a.amount as bigint });
+  for (const l of logs as { eventName: string; args: Record<string, unknown>; blockNumber: bigint; logIndex: number; transactionHash: string }[]) {
+    const a = l.args, tx = l.transactionHash;
+    if (l.eventName === 'Bought') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'bought', who: a.buyer as Address, id: Number(a.firstId), count: Number(a.count), amount: 0n });
+    if (l.eventName === 'Carving') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'carving', who: a.carver as Address, id: Number(a.id), count: 1, amount: 0n });
+    if (l.eventName === 'Claimed') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'claimed', who: a.owner as Address, id: Number(a.id), count: 1, amount: a.amount as bigint });
+    if (l.eventName === 'Fed') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'fed', who: a.from as Address, id: 0, count: 1, amount: a.amount as bigint });
   }
   // a wallet paid for several Great Pumpkins in one block is one line, with the total
   const paid = new Map<string, Happening>();
