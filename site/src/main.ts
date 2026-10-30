@@ -263,6 +263,25 @@ async function onBuy() {
   }
 }
 
+/// Holding stabs, a tap on someone else's whole pumpkin aims one at it and a tap on one you aimed at takes it back,
+/// with no sheet: twenty stabs are twenty taps. Before 8 PM they wait for the night; from 8 PM, "Stab your N" sends
+/// them all in one transaction. Anything else (yours, carved, no stab free) opens its sheet as before.
+function quickAim(id: number): boolean {
+  const p = state.pumpkins.find((x) => x.id === id);
+  if (!p || !session.account || closed() || state.busy || state.pending || mine(p) || !isWhole(p)) return false;
+  if (picked.includes(id)) picked = picked.filter((x) => x !== id);
+  else {
+    if ((carving() ? knivesLeft() - livePicks().length : freeKnives()) <= 0) return false;
+    picked = [...livePicks(), id];
+    fx('pick');
+  }
+  savePicks();
+  renderPatch();
+  renderKnives();
+  renderBuy(); // (from 8 PM the stand's button counts them: "Stab your N")
+  return true;
+}
+
 /// 8\u00a0PM, one tap: every knife you have on the pumpkins you aimed at, in one transaction.
 async function onStrike() {
   const btn = $('buy'), msg = $('buyMsg');
@@ -480,7 +499,7 @@ function renderKnives() {
   el.classList.toggle('go', strike > 0);
   // before 9 with every knife aimed, it says what to do when you come back: tap this, here
   const text = strike ? `Stab your ${strike}`
-    : free ? `${free} ${free === 1 ? 'stab' : 'stabs'} left · ${carving() ? 'Pick a pumpkin to stab' : 'Aim at a pumpkin'}`
+    : free ? `${free} ${free === 1 ? 'stab' : 'stabs'} left · ${carving() ? 'Tap pumpkins to stab' : 'Tap pumpkins to aim'}`
     : `${stabs} aimed · Come back at ${opens()} to stab`;
   if ($('knivesText').textContent !== text) $('knivesText').textContent = text;
 }
@@ -782,8 +801,8 @@ function openHelp() {
     <h2 id="sheetTitle">How it works</h2>
     <ol class="rules">
       <li><b>Mint a pumpkin.</b> ${ethFmt(PRICE)} ETH, up to ${PER_BUY} at a time. Each pumpkin is an NFT and comes with two stabs. 90% of every mint goes in the pot, 10% to taylor.fyi. Minting ends at ${opens()} on ${dayOf(state.salesEnd)}.</li>
-      <li><b>Aim your stabs.</b> Before ${opens()}, tap any pumpkin that isn’t yours and aim at it. Nothing happens yet, and only you can see your aim, in this browser.</li>
-      <li><b>Come back at ${opens()} and stab.</b> One tap stabs every pumpkin you aimed at, or stab one at a time. Each stab carves one pumpkin. If yours gets carved before you use its stabs, they’re lost, so go early.</li>
+      <li><b>Aim your stabs.</b> Before ${opens()}, tap any pumpkin that isn’t yours to aim a stab at it, and tap again to take it back. Nothing happens yet, and only you can see your aims, in this browser.</li>
+      <li><b>Come back at ${opens()} and stab.</b> One tap stabs every pumpkin you aimed at, and you can tap more to add them. Each stab carves one pumpkin. If yours gets carved before you use its stabs, they’re lost, so go early.</li>
       <li><b>See the face.</b> About 12 seconds after a carve, its face appears, chosen by the block, so nobody can pick it. To see yours sooner, stab it yourself any time. It leaves the pot.</li>
       <li><b>Survive the night.</b> Every pumpkin still uncut at ${twelve()} becomes a Great Pumpkin and splits the pot equally. After that, its share is sent to your wallet.</li>
     </ol>
@@ -1031,6 +1050,7 @@ async function main() {
   $('patch').addEventListener('click', (e) => {
     const t = (e.target as HTMLElement).closest('.plant[data-id]') as HTMLElement | null;
     if (!t) return;
+    if (quickAim(Number(t.dataset.id))) return;
     const r = t.getBoundingClientRect();
     origin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     openSheet(Number(t.dataset.id));
