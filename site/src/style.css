@@ -172,9 +172,16 @@ h1 { font-size: 50px; line-height: 1; margin: 0 0 24px; text-wrap: balance; }
 .plant .tag { position: absolute; left: 50%; bottom: calc(var(--plant) * -0.045); transform: translateX(-50%); white-space: nowrap; font-size: 10px; line-height: 1; color: var(--muted); pointer-events: none; }
 :root[data-theme="light"] .plant .tag { color: var(--ink); } /* (muted reads too faint on day soil) */
 .plant .tag i { display: inline-block; width: 2px; height: 0.8em; margin-left: 3px; background: #dfe3ea; vertical-align: -1px; }
-.rules { margin: 8px 0 16px; padding: 0 0 0 20px; font-size: 16px; }
-.rules li { margin: 0 0 12px; }
-.rules b { font-weight: 700; }
+.steps { margin: 16px 0 0; padding: 0; list-style: none; font-size: 16px; }
+.steps li { display: grid; grid-template-columns: 56px 1fr; gap: 24px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+ol.steps li:first-child { border-top: 0; padding-top: 0; }
+.steps.facts { margin: 0 0 16px; }
+.steps b { font-weight: 700; }
+.steps .at { color: var(--muted); }
+.steps .line { display: block; margin-top: 2px; font-size: 14px; color: var(--muted); }
+.sheet .ico { width: 56px; height: 56px; } /* (the hero's phone size at every width) */
+.sheet .ico img { margin: -10px; }
+.sheet .ico img.halo { margin: -20px; }
 .primary { flex: 1; min-width: 0; display: inline-grid; place-items: center; height: 52px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font-size: 20px; font-variant-numeric: tabular-nums; white-space: nowrap; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) { .primary:hover { filter: brightness(1.06); } }
 .primary[aria-disabled="true"] { background: none; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); cursor: default; }

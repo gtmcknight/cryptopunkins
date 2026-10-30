@@ -793,20 +793,26 @@ async function onWallet(btn: HTMLElement) {
   }
 }
 
-/// The whole game in one sheet, for anyone who wants every detail.
+/// The whole game in one sheet: four steps in the game's own pictures, then the two things people ask.
 function openHelp() {
   state.open = 0;
   setUrl(0);
+  const pic = (src: string, halo = false) => `<span class="ico"><img${halo ? ' class="halo"' : ''} alt="" src="${src}"></span>`;
+  const row = (icon: string, head: string, when: string, line: string) =>
+    `<li>${icon}<span><b>${head}</b>${when ? ` <span class="at">${when}</span>` : ''}<span class="line">${line}</span></span></li>`;
   show(`
     <h2 id="sheetTitle">How it works</h2>
-    <ol class="rules">
-      <li><b>Mint a pumpkin.</b> ${ethFmt(PRICE)} ETH, up to ${PER_BUY} at a time. Each pumpkin is an NFT and comes with two stabs. 90% of every mint goes in the pot, 10% to taylor.fyi. Minting ends at ${opens()} on ${dayOf(state.salesEnd)}.</li>
-      <li><b>Aim your stabs.</b> Before ${opens()}, tap any pumpkin that isn’t yours to aim a stab at it, and tap again to take it back. Nothing happens yet, and only you can see your aims, in this browser.</li>
-      <li><b>Come back at ${opens()} and stab.</b> One tap stabs every pumpkin you aimed at, and you can tap more to add them. Each stab carves one pumpkin. If yours gets carved before you use its stabs, they’re lost, so go early.</li>
-      <li><b>See the face.</b> About 12 seconds after a carve, its face appears, chosen by the block, so nobody can pick it. To see yours sooner, stab it yourself any time. It leaves the pot.</li>
-      <li><b>Survive the night.</b> Every pumpkin still uncut at ${twelve()} becomes a Great Pumpkin and splits the pot equally. After that, its share is sent to your wallet.</li>
+    <ol class="steps">
+      ${row(pic(sprite(WHOLE, 0)), 'Mint', `${ethFmt(PRICE)} ETH`, `Each pumpkin is an NFT with two stabs. Minting ends at ${opens()} on ${dayOf(state.salesEnd)}.`)}
+      ${row(pic(sprite(WHOLE, 0, undefined, false, 'poised')), 'Aim', `before ${opens()}`, 'Tap other people’s pumpkins. Only you see your aims.')}
+      ${row(pic(sprite(CARVED, 278, undefined, false, 'in')), 'Stab', opens(), 'One tap carves every pumpkin you aimed at. Go early: if yours is carved first, its stabs are lost.')}
+      ${row(pic(haloSprite(), true), 'Survive', twelve(), 'Every uncut pumpkin splits the pot. Your share is sent to your wallet.')}
     </ol>
-    <p class="note">Times are on your own clock. If nothing survives, every pumpkin sold splits the pot. The art and the game are fully onchain, and every Oct 31 the pumpkins light up.</p>`);
+    <ul class="steps facts">
+      ${row(pic(sprite(CARVED, 41)), 'You keep your NFT.', '', 'Carved or not, it’s yours. A carve just gives it a face.')}
+      ${row(pic(sprite(WHOLE, 0, undefined, false, 'in')), 'Carve yours and it can’t win.', '', 'You see its face right away, but it leaves the pot.')}
+    </ul>
+    <p class="note">90% of every mint goes in the pot, 10% to taylor.fyi. If nothing survives, every pumpkin sold splits the pot. Times are on your clock. The art and the game are fully onchain.</p>`);
 }
 
 function renderWallet() {
