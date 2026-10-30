@@ -41,6 +41,14 @@ export async function loadConfig() {
   return config;
 }
 
+// ETH in dollars, from Chainlink's ETH/USD feed on mainnet (8 decimals), so the pot reads in money too
+const ETH_USD = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
+const feedAbi = parseAbi(['function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)']);
+export async function readEthUsd() {
+  const [, answer] = await pub.readContract({ address: ETH_USD, abi: feedAbi, functionName: 'latestRoundData' });
+  return Number(answer) / 1e8;
+}
+
 export type Pumpkin = {
   id: number; owner: Address; look: number; edition: number;
   knives: number; // left to use

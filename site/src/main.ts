@@ -3,7 +3,7 @@ import { paintScenery, knifeCursor, KNIFE, STAKE, type Box } from './scene';
 import { carveIn } from './carve';
 import { wake, fx } from './sound';
 import {
-  loadConfig, config, readPatch, readFeed, wallets, session, onSession, connect, disconnect, restore, buy, carve, carveMany, claim, landed,
+  loadConfig, config, readPatch, readFeed, readEthUsd, wallets, session, onSession, connect, disconnect, restore, buy, carve, carveMany, claim, landed,
   plain, short, walletName, knownName, onNames, pub, abi, PRICE, PER_BUY, type Pumpkin, type Happening,
 } from './chain';
 
@@ -16,6 +16,7 @@ const state = {
   sold: 0,
   whole: 0,
   pot: 0n,
+  usd: 0, // one ETH in dollars, 0 until the feed answers
   owed: 0n, // what this wallet can claim after midnight
   salesEnd: 0,
   end: 0,
@@ -160,8 +161,10 @@ function renderPot() {
   if (state.loaded) rollPot(Number(pot()) / 1e18); else $('pot').textContent = 'Pot';
   if (!state.loaded) return;
   // (no per-pumpkin split until midnight: before then everything is whole and it reads as less than you paid)
-  $('potLine').textContent = closed() ? `${state.whole} Great Pumpkin${state.whole === 1 ? '' : 's'} · ${ethFmt(share(), 4)} ETH each`
+  const usd = state.usd ? `$${Math.round(Number(pot()) / 1e18 * state.usd).toLocaleString('en-US')}` : '';
+  const more = closed() ? `${state.whole} Great Pumpkin${state.whole === 1 ? '' : 's'} · ${ethFmt(share(), 4)} ETH each`
     : carving() ? `${state.whole} uncut` : '';
+  $('potLine').textContent = [usd, more].filter(Boolean).join(' · ');
 }
 
 // ---------------------------------------------------------------- buy
@@ -170,9 +173,9 @@ function renderBuy() {
   const btn = $('buy');
   $('item').hidden = $('supply').hidden = salesOver();
   $('qty').hidden = !canBuy();
-  // the supply: how many of the 1,031 are left
+  // the supply: minted under the filled end of the bar, what's left of the 1,031 under the rest
   $('supplyFill').style.setProperty('--p', String(state.sold / FOR_SALE));
-  $('supplyText').textContent = state.loaded ? `${(FOR_SALE - state.sold).toLocaleString()} of ${FOR_SALE.toLocaleString()} left` : '\u00a0';
+  $('supplyText').innerHTML = state.loaded ? `<span class="sold">${state.sold.toLocaleString()} minted</span><span>${(FOR_SALE - state.sold).toLocaleString()} of ${FOR_SALE.toLocaleString()} left</span>` : '\u00a0';
   if (closed()) {
     const n = owed().length, paid = state.pumpkins.filter((p) => mine(p) && p.paid).length;
     btn.setAttribute('aria-disabled', String(!!session.account && !n));
@@ -990,6 +993,10 @@ async function main() {
   void pub.getBlockNumber().then((b) => follow(b)).catch(() => {});
   scenery(); // the field's top is known now that the page has laid out
   setInterval(() => { if (!document.hidden) void poll(); }, 4000);
+  // the ETH price moves slowly next to the pot: once now, then every five minutes
+  const price = () => readEthUsd().then((u) => { state.usd = u; renderPot(); }).catch(() => {});
+  void price();
+  setInterval(() => { if (!document.hidden) void price(); }, 300_000);
   setInterval(tick, 1000);
   let resize = 0;
   addEventListener('resize', () => { clearTimeout(resize); resize = window.setTimeout(() => { scenery(); renderPatch(); fitTicker(); }, 120); });
