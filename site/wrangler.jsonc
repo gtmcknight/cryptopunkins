@@ -10,5 +10,5 @@
   "routes": [{ "pattern": "taylor.fyi/cryptopunkins*", "zone_name": "taylor.fyi" }],
   "workers_dev": false,
   // GAME is the CryptoPunkins contract; set it to the deployed address before `npm run deploy`
-  "vars": { "GAME": "0x0000000000000000000000000000000000000000", "END": "1793505600", "FROM_BLOCK": "0" }
+  "vars": { "GAME": "0x0b95859551B79F2D721728cC9010EF0e96fbc6c4", "END": "1793505600", "FROM_BLOCK": "26306514" }
 }
