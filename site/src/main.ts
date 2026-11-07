@@ -1017,6 +1017,8 @@ async function main() {
   if (config.fork && params.has('lit')) forceLit(params.get('lit') === '1');
   state.end = config.end;
   state.salesEnd = config.end - 4 * 3600; // (8 PM, until the contract says)
+  // (the game's over: nothing to connect, mint, stab or claim, so no wallet button, no stand, no knives)
+  for (const id of ['wallet', 'act', 'knives']) $(id).hidden = true;
   render();
   onSession(() => { void refresh().catch(() => render()); });
   await restore().catch(() => {});

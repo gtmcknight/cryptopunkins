@@ -1,4 +1,7 @@
-// The chain side: config, reads through the Worker's /rpc, wallets (EIP-6963), and the writes (buy, carve, claim).
+// The chain side: config, reads, wallets (EIP-6963), and the writes (buy, carve, claim).
+// The game ended at midnight on Halloween 2026 and every payout's made, so the page no longer asks the chain anything:
+// final.json (freeze.mjs read it off the chain once, at block 26364280) holds every pumpkin, the stats, the whole feed,
+// the ETH price and everyone's ENS name, and the reads below answer from it. Wallets can't connect any more.
 import {
   createPublicClient, createWalletClient, custom, getAddress, http, parseAbi, BaseError, ContractFunctionRevertedError,
   UserRejectedRequestError, type Address, type EIP1193Provider, type Hash, type WalletClient,
@@ -35,9 +38,22 @@ export let pub: ReturnType<typeof makePublic>;
 // (batches of 10 at most: the Worker takes up to 20 calls a request)
 const makePublic = () => createPublicClient({ chain: mainnet, transport: http('rpc', { batch: { batchSize: 10, wait: 16 }, retryCount: 2, retryDelay: 800 }) });
 
+type Final = {
+  block: string; config: Config; owners: Address[]; words: string[]; stats: string[]; usd: number; names: Record<string, string>;
+  feed: (Omit<Happening, 'block' | 'amount'> & { block: string; amount: string })[];
+};
+let final: Final;
+
 export async function loadConfig() {
-  config = await (await fetch('config.json')).json();
-  pub = makePublic();
+  final = await (await fetch('final.json')).json();
+  config = final.config;
+  for (const [a, n] of Object.entries(final.names)) names.set(a.toLowerCase(), n);
+  // (what the page still asks of a client, answered from the file: the chain's head, a wallet's claim, a name)
+  pub = {
+    getBlockNumber: async () => BigInt(final.block),
+    readContract: async () => 0n,
+    getEnsName: async ({ address }: { address: string }) => final.names[address.toLowerCase()] ?? null,
+  } as unknown as ReturnType<typeof makePublic>;
   return config;
 }
 
@@ -45,8 +61,7 @@ export async function loadConfig() {
 const ETH_USD = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419';
 const feedAbi = parseAbi(['function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)']);
 export async function readEthUsd() {
-  const [, answer] = await pub.readContract({ address: ETH_USD, abi: feedAbi, functionName: 'latestRoundData' });
-  return Number(answer) / 1e8;
+  return final.usd; // (as it was when the game's state was read: freeze.mjs)
 }
 
 export type Pumpkin = {
@@ -62,12 +77,7 @@ export type Patch = { pumpkins: Pumpkin[]; sold: number; whole: number; salesEnd
 
 export async function readPatch(): Promise<Patch> {
   // (in two halves: the whole patch in one read costs ~15M gas, near what some nodes allow a call)
-  const [[o1, w1], [o2, w2], stats] = await Promise.all([
-    pub.readContract({ address: config.game, abi, functionName: 'patch', args: [1n, 516n] }),
-    pub.readContract({ address: config.game, abi, functionName: 'patch', args: [517n, 1031n] }),
-    pub.readContract({ address: config.game, abi, functionName: 'stats' }),
-  ]);
-  const owners = [...o1, ...o2], words = [...w1, ...w2];
+  const owners = final.owners, words = final.words.map(BigInt), stats = final.stats.map(BigInt);
   const pumpkins = words.map((w, i) => {
     const carver = (w >> 48n) & ((1n << 160n) - 1n);
     return {
@@ -84,7 +94,7 @@ export async function readPatch(): Promise<Patch> {
   });
   return {
     pumpkins, sold: Number(stats[0]), whole: Number(stats[2]), salesEnd: Number(stats[4]), end: Number(stats[5]), pot: stats[6],
-    time: Number(stats[7]),
+    time: Math.floor(Date.now() / 1000), // (the file's clock is long past: this one's as good as any, and never off by days)
   };
 }
 
@@ -92,20 +102,7 @@ export type Happening = { block: bigint; index: number; tx: string; kind: 'bough
 
 /// What happened in the patch between two blocks, for the live feed.
 export async function readFeed(fromBlock: bigint, toBlock: bigint): Promise<Happening[]> {
-  // (in windows public nodes accept)
-  const logs = [];
-  for (let a = fromBlock; a <= toBlock; a += 9_000n) {
-    const b = a + 8_999n < toBlock ? a + 8_999n : toBlock;
-    logs.push(...(await pub.getContractEvents({ address: config.game, abi, fromBlock: a, toBlock: b, strict: true })));
-  }
-  const out: Happening[] = [];
-  for (const l of logs as { eventName: string; args: Record<string, unknown>; blockNumber: bigint; logIndex: number; transactionHash: string }[]) {
-    const a = l.args, tx = l.transactionHash;
-    if (l.eventName === 'Bought') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'bought', who: a.buyer as Address, id: Number(a.firstId), count: Number(a.count), amount: 0n });
-    if (l.eventName === 'Carving') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'carving', who: a.carver as Address, id: Number(a.id), count: 1, amount: 0n });
-    if (l.eventName === 'Claimed') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'claimed', who: a.owner as Address, id: Number(a.id), count: 1, amount: a.amount as bigint });
-    if (l.eventName === 'Fed') out.push({ block: l.blockNumber, index: l.logIndex, tx, kind: 'fed', who: a.from as Address, id: 0, count: 1, amount: a.amount as bigint });
-  }
+  const out: Happening[] = final.feed.map((h) => ({ ...h, block: BigInt(h.block), amount: BigInt(h.amount) })).filter((h) => h.block >= fromBlock && h.block <= toBlock);
   // a wallet paid for several Great Pumpkins in one block is one line, with the total
   const paid = new Map<string, Happening>();
   return out.filter((h) => {
@@ -172,6 +169,7 @@ export function disconnect() {
 
 /// Reconnect quietly if this wallet was connected before and still shares the account.
 export async function restore() {
+  if (final) return; // (the game's over: no wallet comes back)
   if (devKey()) return connect();
   let saved: string | null = null;
   try { saved = localStorage.getItem('punkins-wallet'); } catch {}

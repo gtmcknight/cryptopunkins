@@ -6,7 +6,7 @@
     "art": "cp ../data/site-art.json public/art.json",
     "dev": "npm run art && vite",
     "build": "npm run art && tsc --noEmit && vite build",
-    "deploy": "npm run build && wrangler deploy && wrangler secret bulk .dev.vars",
+    "deploy": "npm run build && wrangler deploy",
     "cards": "python3 -I ../tools/cards.py ../data/grid.json public/cards"
   },
   "dependencies": {

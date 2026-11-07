@@ -1,18 +1,9 @@
-// taylor.fyi/cryptopunkins: the patch. Static files from ./dist, plus /config.json, a read-only /rpc that only
-// answers calls to the game (and ENS and the ETH price), and link previews: ?p=<id> unfurls with that pumpkin's card as it looks right now.
-// The game is over (it ended at midnight on Halloween and every payout's made), so a day after its end every read's
-// answer is kept at the edge for a day: the page still shows how it all ended, and the nodes hardly hear from it.
+// taylor.fyi/cryptopunkins: the patch, as the game ended. Static files from ./dist (the page reads the game's final
+// state from final.json, read off the chain once by freeze.mjs), /config.json for pages opened before, and link
+// previews: ?p=<id> unfurls with that pumpkin's card as the game left it. The game's over, so nothing here asks the
+// chain any more, and /rpc says so to any page still open from before.
 // It has its own route, taylor.fyi/cryptopunkins*, so it takes the folder off itself (the page uses relative URLs).
 
-// (eth_estimateGas too: the page sizes each transaction's gas before the wallet sends it; like eth_call, only to the game)
-// (eth_getTransactionByHash: waiting on a transaction, viem looks it up to follow a wallet's speed-up or cancel)
-const READS = new Set(['eth_call', 'eth_estimateGas', 'eth_blockNumber', 'eth_chainId', 'eth_getTransactionReceipt', 'eth_getTransactionByHash', 'eth_getBlockByNumber', 'eth_getLogs']);
-const ENS = '0xeeeeeeee14d718c2b47d9923deab1335e144eeee'; // ENS's universal resolver: names for addresses
-const ETH_USD = '0x5f4ec3df9cbd43714fe2740f5e3616155c5b8419'; // Chainlink's ETH/USD feed: the pot in dollars
-const FEED_BLOCKS = 10_000; // the most the live feed reads in one go (public nodes cap log ranges near this)
-// publicnode takes every read the page makes (measured 10-30: 9,000-block logs, batches of 10); drpc only small ones
-// (no logs over a few hundred blocks, no batches of 10). ALCHEMY_URL, a secret, is the paid backup between them.
-const PUBLICNODE = 'https://ethereum-rpc.publicnode.com', DRPC = 'https://eth.drpc.org';
 const SITE = 'https://taylor.fyi/cryptopunkins/';
 const BASE = '/cryptopunkins';
 
@@ -25,108 +16,27 @@ export default {
       req = new Request(url, req);
     }
     if (url.pathname === '/config.json') {
-      return Response.json({ chainId: 1, game: env.GAME, end: Number(env.END), from: Number(env.FROM_BLOCK || 0) }, { headers: { 'cache-control': 'public, max-age=60' } });
+      return Response.json({ chainId: 1, game: env.GAME, end: Number(env.END), from: Number(env.FROM_BLOCK || 0) }, { headers: { 'cache-control': 'public, max-age=86400' } });
     }
-    if (url.pathname === '/rpc' && req.method === 'POST') return rpc(req, env, ctx);
+    if (url.pathname === '/rpc') return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'The game is over. Reload the page.' } }, { status: 410 });
     const res = await env.ASSETS.fetch(req);
     const id = Number(url.searchParams.get('p'));
     if (!(id >= 1 && id <= 1031) || !res.headers.get('content-type')?.includes('text/html')) return res;
-    return preview(res, id, env, ctx);
+    return preview(res, id, url, env);
   },
 };
 
-// (a day past the end: nothing on the chain moves the game any more)
-const over = (env) => Date.now() / 1000 > Number(env.END) + 86400;
-const digest = async (s) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, '0')).join('');
-
-async function rpc(req, env, ctx) {
-  const body = await req.json().catch(() => null);
-  const calls = Array.isArray(body) ? body : [body];
-  const game = String(env.GAME).toLowerCase();
-  const allowed = body && calls.length <= 20 && calls.every((c) =>
-    READS.has(c?.method) && ((c.method !== 'eth_call' && c.method !== 'eth_estimateGas') || [game, ENS, ETH_USD].includes(String(c.params?.[0]?.to).toLowerCase()))
-    && (c.method !== 'eth_getLogs' || gameLogs(c.params?.[0], game, Number(env.FROM_BLOCK || 0))));
-  if (!allowed) return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32601, message: 'Only reads of the game' } }, { status: 400 });
-  // (the game over: the same reads, the same answers, kept a day at the edge; a busy node's error is never kept)
-  const key = over(env) && new Request('https://rpc.invalid/' + (await digest((Array.isArray(body) ? 'b' : 's') + JSON.stringify(calls.map((c) => [c.method, c.params ?? []])))));
-  const hit = key && (await caches.default.match(key));
-  const answers = hit ? await hit.json() : await shared(calls, !Array.isArray(body), env);
-  if (!answers) return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'The network is busy. Try again.' } }, { status: 502 });
-  if (key && !hit && answers.every((a) => !a?.error || /revert/i.test(a.error.message))) ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(answers), { headers: { 'cache-control': 'public, max-age=86400' } })));
-  const out = calls.map((c, i) => ({ ...answers[i], id: c.id ?? null }));
-  return new Response(JSON.stringify(Array.isArray(body) ? out : out[0]), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+/// lookOf(id) -> (look, edition) as the game left it: 0 whole, 1 carving, 2 carved, 3 Great Pumpkin (null: never minted)
+async function lookOf(id, url, env) {
+  const f = await env.ASSETS.fetch(new Request(new URL('/final.json', url))).then((r) => (r.ok ? r.json() : null));
+  const w = f?.words?.[id - 1];
+  if (!w) return null;
+  const word = BigInt(w);
+  return { look: Number(word & 0xffn), edition: Number((word >> 8n) & 0xffffn) };
 }
 
-/// Everyone watching asks for the same things at the same moments, so identical reads in flight go upstream once and
-/// share the answer, and the block number is kept a second. Nothing else outlives its answer, so nobody sees older
-/// state than they would asking alone, and a crowd at 8 PM looks like a handful of readers to the public nodes.
-const flights = new Map();
-let head = { at: 0, answers: null };
-
-function shared(calls, single, env) {
-  const key = (single ? 's' : 'b') + JSON.stringify(calls.map((c) => [c.method, c.params ?? []]));
-  const isHead = single && calls[0].method === 'eth_blockNumber';
-  if (isHead && Date.now() - head.at < 1000) return Promise.resolve(head.answers);
-  let flight = flights.get(key);
-  if (!flight) {
-    const asked = calls.map((c, i) => ({ jsonrpc: '2.0', id: i, method: c.method, params: c.params ?? [] }));
-    flight = upstream(single ? asked[0] : asked, env).then((text) => {
-      // (matched by id: a node may answer a batch in any order)
-      const got = new Map((text ? [JSON.parse(text)].flat() : []).map((r) => [r?.id, r]));
-      const answers = asked.map((a) => got.get(a.id));
-      if (answers.some((r) => !r)) return null;
-      if (isHead && answers[0].result) head = { at: Date.now(), answers };
-      return answers;
-    }).catch(() => null).finally(() => flights.delete(key));
-    flights.set(key, flight);
-  }
-  return flight;
-}
-
-/// The live feed's reads: only the game's own events, a week or so at a time.
-function gameLogs(f, game, since) {
-  const a = Array.isArray(f?.address) ? (f.address.length === 1 ? f.address[0] : '') : f?.address;
-  if (String(a).toLowerCase() !== game) return false;
-  const from = /^0x[0-9a-f]+$/i.test(f.fromBlock) ? parseInt(f.fromBlock, 16) : null;
-  const to = /^0x[0-9a-f]+$/i.test(f.toBlock) ? parseInt(f.toBlock, 16) : null;
-  // (from the game's own deploy on: nothing older holds its events, and a full-history read is the costly kind)
-  return from !== null && from >= since && (to === null ? f.toBlock === 'latest' : to - from <= FEED_BLOCKS);
-}
-
-async function upstream(body, env) {
-  // (RPC_URL only for local play against a copy of mainnet)
-  const nodes = env.RPC_URL ? [env.RPC_URL] : [PUBLICNODE, env.ALCHEMY_URL, DRPC].filter(Boolean);
-  let last = null;
-  for (const up of nodes) {
-    try {
-      const r = await fetch(up, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(5000) });
-      if (!r.ok) continue;
-      const text = await r.text();
-      // a node that's busy, behind, or won't take the range says so in an error, and the next one gets a try;
-      // a revert is a real answer
-      if ([JSON.parse(text)].flat().some((a) => a?.error && !/revert/i.test(a.error.message))) { last = text; continue; }
-      return text;
-    } catch {}
-  }
-  return last;
-}
-
-/// lookOf(id) -> (look, edition): 0 whole, 1 carving, 2 carved, 3 Great Pumpkin. Kept 30 seconds at the edge (a day, the game over).
-async function lookOf(id, env, ctx) {
-  const key = new Request(`https://cards.invalid/${env.GAME}/${id}`);
-  const hit = await caches.default.match(key);
-  if (hit) return hit.json();
-  const data = '0xfa8bd61b' + id.toString(16).padStart(64, '0');
-  const text = await upstream({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [{ to: env.GAME, data }, 'latest'] }, env);
-  const hex = text && JSON.parse(text).result;
-  if (!hex || hex.length < 130) return null;
-  const out = { look: parseInt(hex.slice(2, 66), 16), edition: parseInt(hex.slice(66, 130), 16) };
-  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(out), { headers: { 'cache-control': `public, max-age=${over(env) ? 86400 : 30}` } })));
-  return out;
-}
-
-async function preview(res, id, env, ctx) {
-  const l = await lookOf(id, env, ctx).catch(() => null);
+async function preview(res, id, url, env) {
+  const l = await lookOf(id, url, env).catch(() => null);
   if (!l) return res;
   // (an uncut pumpkin's card is in its own colour, by the same sum the contract's renderer uses)
   const [card, title] = l.look === 2 ? [`${l.edition}`, `CryptoPunkin #${l.edition}`]
