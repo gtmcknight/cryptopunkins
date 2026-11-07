@@ -1,5 +1,7 @@
 // taylor.fyi/cryptopunkins: the patch. Static files from ./dist, plus /config.json, a read-only /rpc that only
 // answers calls to the game (and ENS and the ETH price), and link previews: ?p=<id> unfurls with that pumpkin's card as it looks right now.
+// The game is over (it ended at midnight on Halloween and every payout's made), so a day after its end every read's
+// answer is kept at the edge for a day: the page still shows how it all ended, and the nodes hardly hear from it.
 // It has its own route, taylor.fyi/cryptopunkins*, so it takes the folder off itself (the page uses relative URLs).
 
 // (eth_estimateGas too: the page sizes each transaction's gas before the wallet sends it; like eth_call, only to the game)
@@ -25,7 +27,7 @@ export default {
     if (url.pathname === '/config.json') {
       return Response.json({ chainId: 1, game: env.GAME, end: Number(env.END), from: Number(env.FROM_BLOCK || 0) }, { headers: { 'cache-control': 'public, max-age=60' } });
     }
-    if (url.pathname === '/rpc' && req.method === 'POST') return rpc(req, env);
+    if (url.pathname === '/rpc' && req.method === 'POST') return rpc(req, env, ctx);
     const res = await env.ASSETS.fetch(req);
     const id = Number(url.searchParams.get('p'));
     if (!(id >= 1 && id <= 1031) || !res.headers.get('content-type')?.includes('text/html')) return res;
@@ -33,7 +35,11 @@ export default {
   },
 };
 
-async function rpc(req, env) {
+// (a day past the end: nothing on the chain moves the game any more)
+const over = (env) => Date.now() / 1000 > Number(env.END) + 86400;
+const digest = async (s) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+async function rpc(req, env, ctx) {
   const body = await req.json().catch(() => null);
   const calls = Array.isArray(body) ? body : [body];
   const game = String(env.GAME).toLowerCase();
@@ -41,8 +47,12 @@ async function rpc(req, env) {
     READS.has(c?.method) && ((c.method !== 'eth_call' && c.method !== 'eth_estimateGas') || [game, ENS, ETH_USD].includes(String(c.params?.[0]?.to).toLowerCase()))
     && (c.method !== 'eth_getLogs' || gameLogs(c.params?.[0], game, Number(env.FROM_BLOCK || 0))));
   if (!allowed) return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32601, message: 'Only reads of the game' } }, { status: 400 });
-  const answers = await shared(calls, !Array.isArray(body), env);
+  // (the game over: the same reads, the same answers, kept a day at the edge; a busy node's error is never kept)
+  const key = over(env) && new Request('https://rpc.invalid/' + (await digest((Array.isArray(body) ? 'b' : 's') + JSON.stringify(calls.map((c) => [c.method, c.params ?? []])))));
+  const hit = key && (await caches.default.match(key));
+  const answers = hit ? await hit.json() : await shared(calls, !Array.isArray(body), env);
   if (!answers) return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'The network is busy. Try again.' } }, { status: 502 });
+  if (key && !hit && answers.every((a) => !a?.error || /revert/i.test(a.error.message))) ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(answers), { headers: { 'cache-control': 'public, max-age=86400' } })));
   const out = calls.map((c, i) => ({ ...answers[i], id: c.id ?? null }));
   return new Response(JSON.stringify(Array.isArray(body) ? out : out[0]), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
 }
@@ -101,7 +111,7 @@ async function upstream(body, env) {
   return last;
 }
 
-/// lookOf(id) -> (look, edition): 0 whole, 1 carving, 2 carved, 3 Great Pumpkin. Kept 30 seconds at the edge.
+/// lookOf(id) -> (look, edition): 0 whole, 1 carving, 2 carved, 3 Great Pumpkin. Kept 30 seconds at the edge (a day, the game over).
 async function lookOf(id, env, ctx) {
   const key = new Request(`https://cards.invalid/${env.GAME}/${id}`);
   const hit = await caches.default.match(key);
@@ -111,7 +121,7 @@ async function lookOf(id, env, ctx) {
   const hex = text && JSON.parse(text).result;
   if (!hex || hex.length < 130) return null;
   const out = { look: parseInt(hex.slice(2, 66), 16), edition: parseInt(hex.slice(66, 130), 16) };
-  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(out), { headers: { 'cache-control': 'public, max-age=30' } })));
+  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(out), { headers: { 'cache-control': `public, max-age=${over(env) ? 86400 : 30}` } })));
   return out;
 }
 

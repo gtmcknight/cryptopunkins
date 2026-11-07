@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>fyi.taylor.cryptopunkins.awake</string>
+  <key>ProgramArguments</key><array><string>/usr/bin/caffeinate</string><string>-i</string><string>-t</string><string>22800</string></array>
+  <key>StartCalendarInterval</key><array><dict><key>Month</key><integer>10</integer><key>Day</key><integer>31</integer><key>Hour</key><integer>19</integer><key>Minute</key><integer>50</integer></dict></array>
+</dict></plist>
